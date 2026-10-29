@@ -34,6 +34,9 @@
 
 ## Registro das descobertas
 
+   1. Algoritmo de matching: Na busca, a ordem dos acordes da sequência importa. Essa conclusão veio da investigação do padrão já existente no código: toda música marcada com uma sequência famosa a contém de forma exata e consecutiva em algum ponto da cifra. A posição da sequência não importa, pois ela pode aparecer no início, no meio ou no fim da música. A repetição da progressão ao longo da música também não importa, basta que ela apareça ao menos uma vez. Já a repetição de um mesmo acorde em posições seguidas importa. Mesmo que seja um acorde da própria sequência, repeti-lo no meio dela quebra a ordem exata esperada. Essa conclusão veio da observação das cifras das músicas com tag, nas quais a sequência exata sempre aparece em algum ponto, e é isso que faz a música se encaixar na categoria. Por fim, o algoritmo não normalizará os acordes, já que as cifras seguem uma única notação padrão, o que permite a comparação direta. (REFERENCIAR A RESEARCH DPS)
+
+
 [Para cada pergunta acima: o que você encontrou, com referência de onde (arquivo,
 linha, documentação, teste que você rodou).]
 
