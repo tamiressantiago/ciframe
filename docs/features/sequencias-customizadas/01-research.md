@@ -1,9 +1,5 @@
 # Pesquisa — Sequências de Acordes Customizadas
 
-> Preencha esta fase antes de propor qualquer solução. O objetivo é investigar as
-> perguntas abaixo com evidência real (código, dados, testes rápidos que você mesmo
-> rodou), não chutar. Apague este bloco de instruções antes de entregar.
-
 ## Perguntas que você precisa responder
 
 1. **Algoritmo de matching**: hoje, as 6 sequências hardcoded em `main.py` (linhas
@@ -34,14 +30,20 @@
 
 ## Registro das descobertas
 
-   1. Algoritmo de matching: Na busca, a ordem dos acordes da sequência importa. Essa conclusão veio da investigação do padrão já existente no código: toda música marcada com uma sequência famosa a contém de forma exata e consecutiva em algum ponto da cifra. A posição da sequência não importa, pois ela pode aparecer no início, no meio ou no fim da música. A repetição da progressão ao longo da música também não importa, basta que ela apareça ao menos uma vez. Já a repetição de um mesmo acorde em posições seguidas importa. Mesmo que seja um acorde da própria sequência, repeti-lo no meio dela quebra a ordem exata esperada. Essa conclusão veio da observação das cifras das músicas com tag, nas quais a sequência exata sempre aparece em algum ponto, e é isso que faz a música se encaixar na categoria. Por fim, o algoritmo não normalizará os acordes, já que as cifras seguem uma única notação padrão, o que permite a comparação direta. (REFERENCIAR A RESEARCH DPS)
+   1. Algoritmo de matching: Na busca, uma música tem a sequência famosa quando a sequência aparece de forma exata e consecutiva em algum ponto da cifra e a música não usa nenhum acorde fora da sequência. Comecei achando que existia apenas a primeira condição, porque toda música marcada com uma sequência famosa a contém de forma exata e consecutiva (docs/research/exemplo_sequencia_nunca_exata.md e docs/research/analise_padrao_cifra_sequencial_famosa.md). Mas, ao executar o algoritmo contra os dados, vi que só essa condição não reproduzia os matches do código original. Ao acrescentar a segunda, o resultado passou a bater com a tag nas 6 sequências. Confirmei a necessidade dessa condição ao usar a ferramenta /research-codebase para procurar no dataset_final.csv por alguma cifra com tag de sequência famosa que tivese acordes fora dessa sequência, tendo como resultado 0 ocorrências (docs/research/acordes_fora_da_sequencia_famosa.md).
 
+   A posição da sequência não importa, pois ela pode aparecer no início, no meio ou no fim da música. A repetição da sequência ao longo da música também não importa, basta que ela apareça ao menos uma vez. Já a repetição de um mesmo acorde em posições seguidas quebra a ordem exata esperada, mesmo que seja um acorde da própria sequência (por exemplo, para a sequência BmGDA, BmGGDA não funciona). Por fim, atualmente a normalização existente das cifras limpa apenas tablaturas (docs/research/normalizacao_cifras.md, docs/research/padrao_maiusculas_cifras.md e conferido na função limpa_cifra() no main 11-23). As cifras também não seguem a mesma notação (docs/research/padrao_musical_cifras.md).
 
-[Para cada pergunta acima: o que você encontrou, com referência de onde (arquivo,
-linha, documentação, teste que você rodou).]
+   2. Validação da hipótese: Informei as caracteristicas que eu queria no algoritmo para o opencode e solicitei a criação dele (presente em scripts/algoritmo.py). O algoritmo reproduz os mesmos matches que o código atual produz (saída com comparações em docs/research/saida_validacao_matching.txt).
+
+   3. Banco de dados: Executei o comando /research-codebase e pedi 3 opções de bancos embarcados viáveis nesse contexto (docs/research/bancos_embarcados_local_only.md), e o resultado foi SQLite, DuckDB e TinyDB. O SQLite já vem no Python, então não exige dependência nova. O DuckDB e o TinyDB não vêm e precisariam ser acrescentados ao requirements.txt. As três opções gravam em um arquivo local. Hoje o Dockerfile não declara volume (Dockerfile) e o comando docker run -p 8080:8080 ciframe (README.md:19-24) também não monta nenhum, então um arquivo gravado dentro do container é perdido quando o container é recriado.
+
+   4. Frontend existente: A página #/porsequencia busca músicas através de uma sequência famosa de acordes. Em static/assets/js/controllers/sequencia.js, exibe 4 sequências famosas de forma hardcoded (linhas 2-31) e realiza o GET através da função pesquisarPorSequencia(), que também apresenta um filtro opcional de gênero (linhas 63-90). A página também permite que, quando o usuário clique no cartão da música, ele seja direcionado para a página da crifra (static/templates/sequencia.html na linha 45 e static/assets/js/controllers/sequencia.js em 97-99).
 
 ## Trade-offs identificados
 
-[Opções reais que você considerou para cada decisão (algoritmo, banco, frontend) e
-os prós/contras de cada uma. Isso alimenta a fase de proposta — não decida ainda
-aqui.]
+Para o algoritmo, não normalizar é a opção mais simples e foi suficiente para reproduzir os mesmos matches do código atual, mas faz uma sequência só casar com músicas que a escrevam exatamente igual. Normalizar aumentaria os resultados, mas teria que ser aplicado tanto à sequência do usuário quanto às cifras, exigiria decidir quais variações unificar e poderia alterar os matches que o código atual faz.
+
+Para o banco de dados, o SQLite não exige dependência nova, pois já vem no Python, o DuckDB e o TinyDB exigem acrescentar um pacote ao requirements.txt. As três opções gravam em arquivo local, então o arquivo é perdido quando o container é recriado, e qualquer opção exigiria alterar o Dockerfile e/ou o comando de execução do README para persistir os dados.
+
+No frontend, poderíamos ter a opção do usuário cadastrar a sequência através de um botão para cada acorde, de forma similar ao que é feito na página #/poracordes. A vantagem é que a entrada virá já no formato esperado, reduzindo erros de digitação. A desvantagem é a poluição visual que esses botões adicionariam na página, pois diferente da #/poracordes, a #/porsequencia também mostra as sequências já cadastradas. Além disso, o CSV usa diferentes tipos de acordes (maj7, add9, inversões com /), então um conjunto fixo de botões limitaria as sequências possíveis ou seria necessário muitos botões. Poderíamos também ter apenas um campo de texto para o usuário digitar, mas essa opção precisa de validação e aceita erros de digitação.

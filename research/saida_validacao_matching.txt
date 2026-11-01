@@ -1,0 +1,69 @@
+================================================================================
+VALIDAÇÃO: ALGORITMO DE BUSCA POR SEQUÊNCIA EXATA E CONSECUTIVA
+GABARITO: APENAS músicas com tag SEQ_FAMOSA correspondente (sem filtro adicional)
+ALGORITMO: musica_contem_sequencia(cifra, seq_tokens)
+================================================================================
+
+SEQUÊNCIA: BmGDA (id=0) | Tokens: ['Bm', 'G', 'D', 'A'] | Chords_set: ['A', 'Bm', 'D', 'G']
+--------------------------------------------------------------------------------
+Total esperado (apenas tag): 199
+Total encontrado (algoritmo): 199
+Verdadeiros positivos: 199
+Falsos positivos: 0
+Falsos negativos: 0
+Precisão: 1.0000 | Recall: 1.0000
+
+
+SEQUÊNCIA: CGAmF (id=1) | Tokens: ['C', 'G', 'Am', 'F'] | Chords_set: ['Am', 'C', 'F', 'G']
+--------------------------------------------------------------------------------
+Total esperado (apenas tag): 296
+Total encontrado (algoritmo): 296
+Verdadeiros positivos: 296
+Falsos positivos: 0
+Falsos negativos: 0
+Precisão: 1.0000 | Recall: 1.0000
+
+
+SEQUÊNCIA: EmG (id=2) | Tokens: ['Em', 'G'] | Chords_set: ['Em', 'G']
+--------------------------------------------------------------------------------
+Total esperado (apenas tag): 4
+Total encontrado (algoritmo): 4
+Verdadeiros positivos: 4
+Falsos positivos: 0
+Falsos negativos: 0
+Precisão: 1.0000 | Recall: 1.0000
+
+
+SEQUÊNCIA: CA7DmG7 (id=3) | Tokens: ['C', 'A7', 'Dm', 'G7'] | Chords_set: ['A7', 'C', 'Dm', 'G7']
+--------------------------------------------------------------------------------
+Total esperado (apenas tag): 5
+Total encontrado (algoritmo): 5
+Verdadeiros positivos: 5
+Falsos positivos: 0
+Falsos negativos: 0
+Precisão: 1.0000 | Recall: 1.0000
+
+
+SEQUÊNCIA: GmF (id=4) | Tokens: ['Gm', 'F'] | Chords_set: ['F', 'Gm']
+--------------------------------------------------------------------------------
+Total esperado (apenas tag): 7
+Total encontrado (algoritmo): 7
+Verdadeiros positivos: 7
+Falsos positivos: 0
+Falsos negativos: 0
+Precisão: 1.0000 | Recall: 1.0000
+
+
+SEQUÊNCIA: CC7FFm (id=5) | Tokens: ['C', 'C7', 'F', 'Fm'] | Chords_set: ['C', 'C7', 'F', 'Fm']
+--------------------------------------------------------------------------------
+Total esperado (apenas tag): 3
+Total encontrado (algoritmo): 3
+Verdadeiros positivos: 3
+Falsos positivos: 0
+Falsos negativos: 0
+Precisão: 1.0000 | Recall: 1.0000
+
+
+================================================================================
+FIM DA VALIDAÇÃO
+================================================================================
