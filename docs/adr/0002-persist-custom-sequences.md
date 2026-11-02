@@ -1,8 +1,7 @@
-# [Título: decisão de introduzir persistência para sequências de acordes customizadas]
+# Introduzir persistência com SQLite em volume para o catálogo de sequências customizadas
 
-> Escreva no mesmo estilo de `0001-local-only-docker-deploy.md`: parágrafos
-> corridos, sem seções formais obrigatórias — qual era o problema, o que foi
-> decidido, por quê, e quais consequências/trade-offs isso traz. Apague este
-> bloco de instruções antes de entregar.
+O projeto mantinha o catálogo de sequências apenas em código (`main.py` com 6 sequências hardcoded) e as buscas usavam tags pré-computadas no CSV. Com a necessidade de permitir que qualquer visitante cadastre uma nova sequência famosa de acordes (sem login) e a use para buscar, esse catálogo deixou de ser estático: as sequências cadastradas precisam existir entre execuções do container Docker local-only.
 
-[seu texto aqui]
+Foi decidido usar o SQLite `sqlite3` da biblioteca padrão do Python para guardar apenas o catálogo de sequências. As músicas e os gêneros continuam vindo do CSV, carregados em memória como hoje. O banco terá uma tabela `sequencias` com `id` inteiro e os `acordes` guardados como texto com os acordes separados por espaço (ex.: `Bm G D A`), populada na primeira execução com as 6 sequências originais. O arquivo ficará em um volume, pois hoje o `Dockerfile` não declara volume e um arquivo gravado dentro do container é perdido quando o container é recriado; para manter as sequências é necessário montar um volume, alterando o comando de execução para algo como `docker run -p 8080:8080 -v ciframe-db:/app/data/db ciframe`.
+
+Essa escolha foi feita porque o SQLite já vem na imagem, não exigindo dependência nova no `requirements.txt`, grava em arquivo local e é viável no container único local-only documentado em `docs/adr/0001-local-only-docker-deploy.md`. O trade-off é justamente a necessidade de persistência via volume: sem ele, as sequências se perdem na recriação do container. Além disso, a busca para sequências passará a ser calculada em tempo real a partir da cifra das músicas, usando o critério que reproduz as tags atuais: a música não pode ter acordes fora da sequência e a sequência deve aparecer na ordem exata e de forma sequencial ao menos uma vez (verificado nessa ordem).
