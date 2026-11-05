@@ -5,8 +5,39 @@ import sys
 from musica import *
 from collections import OrderedDict
 import unicodedata
+import sqlite3
+import os
 
 app = Flask(__name__)
+
+DB_DIR = os.path.join('data', 'db')
+DB_PATH = os.path.join(DB_DIR, 'sequencias.db')
+
+SEQUENCIAS_ORIGINAIS = [
+    (0, 'Bm G D A'),
+    (1, 'C G Am F'),
+    (2, 'Em G'),
+    (3, 'C A7 Dm G7'),
+    (4, 'Gm F'),
+    (5, 'C C7 F Fm'),
+]
+
+
+def init_db_sequencias():
+    os.makedirs(DB_DIR, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('''CREATE TABLE IF NOT EXISTS sequencias (
+        id INTEGER PRIMARY KEY,
+        acordes TEXT UNIQUE
+    )''')
+    for seq_id, acordes_str in SEQUENCIAS_ORIGINAIS:
+        cur.execute('INSERT OR IGNORE INTO sequencias (id, acordes) VALUES (?, ?)', (seq_id, acordes_str))
+    conn.commit()
+    conn.close()
+
+
+init_db_sequencias()
 
 def limpa_cifra(raw_cifra):
     cifra = []
@@ -43,6 +74,42 @@ sequencias = {'BmGDA' : 0,
         'CA7DmG7' : 3,
         'GmF' : 4,
         'CC7FFm' : 5}
+
+
+def has_exact_consecutive_sequence(cifra_list, seq_tokens):
+    if len(seq_tokens) == 0:
+        return False
+    if len(seq_tokens) > len(cifra_list):
+        return False
+    for i in range(len(cifra_list) - len(seq_tokens) + 1):
+        match = True
+        for j in range(len(seq_tokens)):
+            if cifra_list[i + j].strip() != seq_tokens[j]:
+                match = False
+                break
+        if match:
+            return True
+    return False
+
+
+def musica_contem_sequencia(cifra, seq_tokens):
+    if not has_exact_consecutive_sequence(cifra, seq_tokens):
+        return False
+    seq_chords_set = set(seq_tokens)
+    cifra_chords_set = set([c.strip() for c in cifra if str(c).strip() != ''])
+    extra = cifra_chords_set - seq_chords_set
+    if len(extra) == 0:
+        return True
+    return False
+
+
+def musica_tem_sequencia(musica, seq_tokens):
+    if not hasattr(musica, 'cifra') or not hasattr(musica, 'acordes'):
+        return False
+    if not musica_contem_sequencia(musica.cifra, seq_tokens):
+        return False
+    return True
+
 
 musicas_dict = {}
 

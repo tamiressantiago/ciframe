@@ -16,6 +16,7 @@
   - `acordes` TEXT (acordes separados por espaço, ex.: `Bm G D A`)
 - [ ] **2.3** Na primeira execução (startup), popular com as 6 sequências originais de `main.py:40-45` (inserir apenas se não existirem).
 - [ ] **2.4** Garantir que o arquivo seja gravado no caminho preparado para volume.
+- [ ] **2.5** O banco não deve aceitar sequências repetidas.
 
 ### 3. [ ] Atualizar .gitignore e .dockerignore para data/db/
 - [ ] **3.1** Adicionar `data/db/` em `.gitignore`.
