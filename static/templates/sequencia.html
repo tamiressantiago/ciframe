@@ -2,11 +2,73 @@
   <div class="row">
     <div class="col-sm-6 col-md-4 viewWindow-panel viewWindow-panel-C">
       <div class="viewWindow-panel-container">
-        <h4 class="text-center">Aponte uma sequencia de acordes</h4>
-        <div class="acordes-container" ng-repeat='sequencia in Sequencia.sequenciasFamosas' ng-click="Sequencia.pesquisarPorSequencia(sequencia)">
-          <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" acorde-checked="Sequencia.temAcorde(acordeon)" ng-repeat="acordeon in sequencia.acordes"></df-hex>
+        <h4 class="text-center">Aponte uma sequência de acordes</h4>
+
+        <div class="alert alert-success alert-dismissible" role="alert" ng-if="Sequencia.tipoMensagemCadastro === 'success'">
+          <button type="button" class="close" aria-label="Fechar" ng-click="Sequencia.fecharMensagemCadastro()">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          {{Sequencia.mensagemCadastro}}
+        </div>
+
+        <div class="text-center" ng-if="Sequencia.carregandoSequencias">
+          <p>Carregando sequências...</p>
+        </div>
+
+        <div class="alert alert-danger" role="alert" ng-if="Sequencia.erroCarregandoSequencias">
+          {{Sequencia.erroCarregandoSequencias}}
+          <button class="btn btn-default btn-sm" ng-click="Sequencia.carregarSequencias()">Tentar novamente</button>
+        </div>
+
+        <div class="text-center" ng-if="!Sequencia.carregandoSequencias && !Sequencia.erroCarregandoSequencias && !Sequencia.sequenciasFamosas.length">
+          <p>Nenhuma sequência cadastrada.</p>
+        </div>
+
+        <div class="acordes-container" ng-repeat="sequencia in Sequencia.sequenciasFamosas track by sequencia.id" ng-click="Sequencia.pesquisarPorSequencia(sequencia)">
+          <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" acorde-checked="Sequencia.temAcorde(acordeon)" ng-repeat="acordeon in sequencia.acordes track by $index"></df-hex>
         </div>
         <br style="clear: both;">
+
+        <div class="text-center" ng-if="!Sequencia.mostrarCadastro">
+          <button class="btn btn-link btn-lg" ng-click="Sequencia.abrirCadastro()">
+            <span class="glyphicon glyphicon-plus"></span> Cadastrar nova sequência
+          </button>
+        </div>
+
+        <div ng-show="Sequencia.mostrarCadastro">
+          <hr>
+          <h4 class="text-center">Cadastrar nova sequência</h4>
+
+          <div class="alert alert-danger" role="alert" ng-if="Sequencia.tipoMensagemCadastro === 'danger'">
+            {{Sequencia.mensagemCadastro}}
+          </div>
+
+          <div class="acordes-container" ng-repeat="acordesCollection in Sequencia.acordes">
+            <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" acorde-checked="Sequencia.novaSequenciaTemAcorde(acordeon)" ng-repeat="acordeon in acordesCollection track by $index" ng-click="Sequencia.addAcordeNovaSequencia(acordeon)" title="Adicionar acorde"></df-hex>
+          </div>
+          <br style="clear: both;">
+
+          <h5 class="text-center">Prévia da sequência</h5>
+          <div class="acordes-container" ng-if="Sequencia.novaSequencia.acordes.length">
+            <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" ng-repeat="acordeon in Sequencia.novaSequencia.acordes track by $index" ng-click="Sequencia.removerAcordeNovaSequencia($index)" title="Remover acorde"></df-hex>
+          </div>
+          <p class="text-center" ng-if="!Sequencia.novaSequencia.acordes.length">Clique nos acordes acima para montar a sequência.</p>
+          <p class="text-center" ng-if="Sequencia.novaSequencia.acordes.length">Clique em um acorde da prévia para removê-lo.</p>
+          <br style="clear: both;">
+
+          <div class="text-center">
+            <button class="btn btn-primary" ng-click="Sequencia.cadastrarSequencia()" ng-disabled="!Sequencia.novaSequencia.acordes.length || Sequencia.isCadastrando">
+              {{Sequencia.isCadastrando ? 'Cadastrando...' : 'Cadastrar'}}
+            </button>
+            <button class="btn btn-link" ng-click="Sequencia.limparNovaSequencia()" ng-disabled="!Sequencia.novaSequencia.acordes.length || Sequencia.isCadastrando">
+              Limpar
+            </button>
+            <button class="btn btn-link" ng-click="Sequencia.fecharCadastro()" ng-disabled="Sequencia.isCadastrando">
+              Cancelar
+            </button>
+          </div>
+        </div>
+
         <button class="search-results-count" ng-if="Sequencia.showSearchResultsCount" ng-click="Sequencia.goToResults()">
           <span class="glyphicon glyphicon-triangle-bottom bounce animated infinite"></span>
           <br>
@@ -16,7 +78,7 @@
     </div>
     <div id="results" class="col-sm-6 col-md-8 viewWindow-panel viewWindow-panel-D">
       <div class="viewWindow-panel-container">
-        <div ng-show="Sequencia.minhaSequencia.acordes.length">
+        <div ng-show="Sequencia.minhaSequencia.acordes && Sequencia.minhaSequencia.acordes.length">
           <h4>{{Sequencia.esfigeSpeech}}</h4>
           <div class="row">
             <div class="col-md-3">
@@ -31,7 +93,7 @@
               </div>
             </div>
             <div class="col-md-9">
-              <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" ng-repeat="acordeon in Sequencia.minhaSequencia.acordes" ng-click="Sequencia.limparPesquisa()"></df-hex>
+              <df-hex acorde="{{acordeon.acorde}}" acorde-color="{{acordeon.cor}}" ng-repeat="acordeon in Sequencia.minhaSequencia.acordes track by $index" ng-click="Sequencia.limparPesquisa()"></df-hex>
               <br style="clear: both;"><br>
             </div>
           </div>
@@ -40,7 +102,7 @@
         <div class="row row-in">
           <div class="col-sm-6 col-lg-4"
             ng-repeat="music in Sequencia.musics | orderBy:'-popularidade'"
-            ng-hide="music.diferenca.length">
+            ng-hide="music.diferenca && music.diferenca.length">
 
               <div class="music-card" ng-click="Sequencia.goToLirics(music)">
                 <div class="row row-in">
@@ -58,6 +120,10 @@
           </div>
         </div>
 
+        <div class="text-center" ng-if="Sequencia.buscaRealizada && !Sequencia.musics.length">
+          <p>Tente outra sequência ou remova o filtro de gênero.</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>

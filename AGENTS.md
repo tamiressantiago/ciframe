@@ -7,8 +7,9 @@ similar songs. Full description: [README.md](README.md).
 ## Stack
 
 - Backend: Python 3.9, Flask 3.1, gunicorn. Single file (`main.py`) that
-  loads `data/top/dataset_final.csv` into memory once at startup — there is
-  no database.
+  loads `data/top/dataset_final.csv` into memory once at startup. Custom
+  chord sequences persist in SQLite at `data/db/sequencias.db` (override with
+  `CIFRAME_DB_PATH`).
 - Frontend: AngularJS 1.4.9 + jQuery, loaded from CDN in `static/index.html`,
   no build step. Legacy, and there's no plan to modernize the stack itself —
   but touching it is no longer off-limits when a task needs it; see
@@ -21,7 +22,7 @@ Docker (matches how the app actually ships):
 
 ```
 docker build -t ciframe .
-docker run -p 8080:8080 ciframe
+docker run -p 8080:8080 -v ciframe-db:/app/data/db ciframe
 ```
 
 Or a plain virtualenv:
@@ -30,6 +31,13 @@ Or a plain virtualenv:
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python main.py        # serves on :5000 instead of :8080
+```
+
+## Run tests
+
+```
+pip install -r requirements-dev.txt
+python -m pytest tests -q
 ```
 
 ## Verify it's up

@@ -11,11 +11,11 @@ Para que uma música seja compatível com uma sequência, deverá ser verificado
 
 É interessante que a verificação seja feita nesta ordem, pois como temos `musica.acordes` (acordes únicos) será rápido verificar e descartar as músicas que já não cumpram com a condição 1.
 
-Essa regra é adequada porque ela reproduz exatamente as músicas com tag `SEQ_FAMOSA` nas 6 sequências existentes (`research/saida_validacao_matching.txt`). A tag SEQ_FAMOSA do CSV deixa de ser usada na busca, já que o matching passa a ser calculado em tempo real para todas as sequências.
+Essa regra é adequada porque ela reproduz exatamente as músicas com tag `SEQ_FAMOSA` nas 6 sequências existentes (`artefatos/reppit/research/saida_validacao_matching.txt`). A tag SEQ_FAMOSA do CSV deixa de ser usada na busca, já que o matching passa a ser calculado em tempo real para todas as sequências.
 
 ### Banco de dados
 
-Usei a ferramenta /make-proposals para criar propostas sobre os bancos pesquisados em 01-research.md (proposals/solution_proposals_sequencias_customizadas.md). O SQLite foi escolhido por já vir na imagem, sem precisar adicionar uma dependência nova em `requirements.txt`. Só o catálogo de sequências vai para o banco. As músicas e os gêneros continuam vindo do CSV, carregados em memória como hoje. Na busca, a sequência é lida do banco e comparada com as músicas carregadas do CSV, então o banco apenas guarda e devolve para o front a lista de acordes de cada sequência.
+Usei a ferramenta /make-proposals para criar propostas sobre os bancos pesquisados em 01-research.md (artefatos/reppit/proposals/solution_proposals_sequencias_customizadas.md). O SQLite foi escolhido por já vir na imagem, sem precisar adicionar uma dependência nova em `requirements.txt`. Só o catálogo de sequências vai para o banco. As músicas e os gêneros continuam vindo do CSV, carregados em memória como hoje. Na busca, a sequência é lida do banco e comparada com as músicas carregadas do CSV, então o banco apenas guarda e devolve para o front a lista de acordes de cada sequência.
 
 Para a persistência, o banco será um arquivo local e precisa ficar em volume. Sem isso, as sequências vão se perder quando o container for recriado. O arquivo ficará em `data/db/`. Na primeira execução, o banco será criado com as 6 sequências originais.
 

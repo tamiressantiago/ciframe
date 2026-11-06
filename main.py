@@ -11,7 +11,7 @@ import os
 app = Flask(__name__)
 
 DB_DIR = os.path.join('data', 'db')
-DB_PATH = os.path.join(DB_DIR, 'sequencias.db')
+DB_PATH = os.environ.get('CIFRAME_DB_PATH', os.path.join(DB_DIR, 'sequencias.db'))
 
 SEQUENCIAS_ORIGINAIS = [
     (0, 'Bm G D A'),
@@ -24,7 +24,9 @@ SEQUENCIAS_ORIGINAIS = [
 
 
 def init_db_sequencias():
-    os.makedirs(DB_DIR, exist_ok=True)
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute('''CREATE TABLE IF NOT EXISTS sequencias (
@@ -53,6 +55,13 @@ def limpa_cifra(raw_cifra):
                 cifra += tokens
     return cifra
 
+
+def normalizar_sequencia(texto):
+    if not isinstance(texto, str):
+        return ''
+    tokens = texto.replace(',', ' ').split()
+    return ' '.join(token[0].upper() + token[1:] for token in tokens)
+
 # colunas do csv
 ARTISTA_ID = 0
 MUSICA_ID = 1
@@ -64,16 +73,15 @@ TOM = 6
 SEQ_FAMOSA = 7
 CIFRA = 8
 TAM_PAGINA = 100
+MAX_ACORDES_SEQUENCIA = 20
+MAX_CARACTERES_ACORDE = 30
+MAX_CONTEUDO_SEQUENCIA = 2 * 1024
+
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTEUDO_SEQUENCIA
 
 genero_musicas = {}
 generos = set()
 acordes = set()
-sequencias = {'BmGDA' : 0,
-        'CGAmF' : 1,
-        'EmG' : 2,
-        'CA7DmG7' : 3,
-        'GmF' : 4,
-        'CC7FFm' : 5}
 
 
 def has_exact_consecutive_sequence(cifra_list, seq_tokens):
@@ -104,16 +112,15 @@ def musica_contem_sequencia(cifra, seq_tokens):
 
 
 def musica_tem_sequencia(musica, seq_tokens):
-    if not hasattr(musica, 'cifra') or not hasattr(musica, 'acordes'):
+    cifra = getattr(musica, 'cifra', None)
+    if cifra is None:
         return False
-    if not musica_contem_sequencia(musica.cifra, seq_tokens):
-        return False
-    return True
+    return musica_contem_sequencia(cifra, seq_tokens)
 
 
 musicas_dict = {}
 
-f = open('data/top/dataset_final.csv')
+f = open('data/top/dataset_final.csv', encoding='utf-8')
 f.readline()
 
 for line in f:
@@ -230,6 +237,70 @@ def get_generos():
 def get_acordes():
     return json.dumps(list(acordes))
 
+@app.route('/sequencias', methods=['GET'])
+def get_sequencias():
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        try:
+            cur = conn.cursor()
+            cur.execute('SELECT id, acordes FROM sequencias ORDER BY id')
+            resultado = [{'id': row[0], 'acordes': row[1]} for row in cur.fetchall()]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return json.dumps({'erro': 'erro ao acessar banco de sequencias'}), 500
+    return json.dumps(resultado)
+
+@app.route('/sequencias', methods=['POST'])
+def post_sequencias():
+    if request.content_length is not None and request.content_length > MAX_CONTEUDO_SEQUENCIA:
+        return json.dumps({'erro': 'corpo muito grande'}), 413
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return json.dumps({'erro': 'corpo invalido'}), 400
+
+    acordes_raw = data.get('acordes')
+    if not isinstance(acordes_raw, str):
+        return json.dumps({'erro': 'acordes deve ser string'}), 400
+
+    acordes_normalizados = normalizar_sequencia(acordes_raw)
+    if not acordes_normalizados:
+        return json.dumps({'erro': 'sequencia vazia'}), 400
+
+    tokens = acordes_normalizados.split(' ')
+    if len(tokens) > MAX_ACORDES_SEQUENCIA:
+        return json.dumps({
+            'erro': 'sequencia pode ter no maximo %d acordes' % MAX_ACORDES_SEQUENCIA
+        }), 400
+    if any(len(token) > MAX_CARACTERES_ACORDE for token in tokens):
+        return json.dumps({
+            'erro': 'cada acorde pode ter no maximo %d caracteres' % MAX_CARACTERES_ACORDE
+        }), 400
+
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        cur = conn.cursor()
+        try:
+            cur.execute('INSERT INTO sequencias (acordes) VALUES (?)', (acordes_normalizados,))
+            conn.commit()
+            novo_id = cur.lastrowid
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            cur.execute('SELECT id FROM sequencias WHERE acordes = ?', (acordes_normalizados,))
+            row = cur.fetchone()
+            if row is None:
+                return json.dumps({'erro': 'sequencia ja existe'}), 409
+            return json.dumps({'erro': 'sequencia ja existe', 'id': row[0]}), 409
+    except sqlite3.Error:
+        return json.dumps({'erro': 'erro ao acessar banco de sequencias'}), 500
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return json.dumps({'id': novo_id, 'acordes': acordes_normalizados}), 201
+
 @app.route('/musica/<m_id>/')
 def get_musica(m_id):
     return json.dumps(musicas[m_id].__dict__)
@@ -255,25 +326,38 @@ def get_similares():
         musica = musicas[id_musica_tag]
         acordes = musica.acordes
     elif sequencia_tag:
-        acordes = sequencia_tag.replace(',','')
-        similares = []
+        acordes_sequencia = normalizar_sequencia(sequencia_tag)
+        if not acordes_sequencia:
+            return json.dumps([])
 
-        if acordes in sequencias:
-            id_seq = sequencias[acordes]
-            similares = get_pagina(get_similares_por_sequencia(id_seq, generos_key), pagina_tag)
-        return json.dumps(similares)
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5)
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT id FROM sequencias WHERE acordes = ?', (acordes_sequencia,))
+                sequencia_existe = cur.fetchone() is not None
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            return json.dumps({'erro': 'erro ao acessar banco de sequencias'}), 500
+
+        if not sequencia_existe:
+            return json.dumps([])
+
+        similares = get_similares_por_sequencia(acordes_sequencia.split(' '), generos_key)
+        return json.dumps(get_pagina(similares, pagina_tag))
 
     similares = get_similares(acordes, generos_key, id_musica_tag)
 
     return json.dumps(get_pagina(similares, pagina_tag))
 
-def get_similares_por_sequencia(id_seq, generos_key):
+def get_similares_por_sequencia(seq_tokens, generos_key):
     # filtra para melhor desempenho
     collection = apply_filtro(musicas.values(), generos_key)
 
     similares = []
     for musica in collection:
-        if str(id_seq) in musica.seqs_famosas:
+        if musica_tem_sequencia(musica, seq_tokens):
             similar = {
                 'id_unico_musica' : musica.id_unico_musica,
                 'id_artista' : musica.id_artista,
@@ -337,6 +421,10 @@ def apply_filtro(musicas, generos_key):
         if genero in generos:
             collection += genero_musicas[genero]
     return collection
+
+@app.errorhandler(413)
+def corpo_muito_grande(error):
+    return json.dumps({'erro': 'corpo muito grande'}), 413
 
 @app.after_request
 def add_header(response):

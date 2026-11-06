@@ -160,6 +160,7 @@ a:active {
 
 .acordes-container {
   width: 300px; /* to hold 6 hexs*/
+  max-width: 100%;
   margin: auto;
   clear: both;
 }

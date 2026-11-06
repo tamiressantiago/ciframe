@@ -1,27 +1,17 @@
 # -*- coding: utf-8 -*-
+import json
 import os
-import sys
-import unittest
-from unittest.mock import MagicMock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import main
 
-sys.modules['flask'] = MagicMock()
 
-from musica import Musica
-from main import limpa_cifra, musica_contem_sequencia
+FIXTURE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'fixtures',
+    'similares_sequencias_baseline.json',
+)
 
-ARTISTA_ID = 0
-MUSICA_ID = 1
-ARTISTA = 2
-MUSICA = 3
-GENERO = 4
-POPULARIDADE = 5
-TOM = 6
-SEQ_FAMOSA = 7
-CIFRA = 8
-
-sequencias = [
+SEQUENCIAS = [
     (['Bm', 'G', 'D', 'A'], 0),
     (['C', 'G', 'Am', 'F'], 1),
     (['Em', 'G'], 2),
@@ -31,53 +21,57 @@ sequencias = [
 ]
 
 
-class TestRegressaoSequencias(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                'data', 'top', 'dataset_final.csv')
-        cls.musicas_dict = {}
-        with open(csv_path, 'r', encoding='utf-8') as f:
-            f.readline()
-            for line in f:
-                try:
-                    line = line.replace('"', '').replace('NA', '')[:-1]
-                except Exception:
-                    continue
-                musica = line.split(',')
-                if len(musica) < 9:
-                    continue
-                try:
-                    musica[POPULARIDADE] = int(str(musica[POPULARIDADE]).replace('.', ''))
-                except Exception:
-                    musica[POPULARIDADE] = 0
-                if musica[CIFRA] != '':
-                    musica[CIFRA] = limpa_cifra(musica[CIFRA].split(';'))
-                else:
-                    musica[CIFRA] = []
-                musica[SEQ_FAMOSA] = str(musica[SEQ_FAMOSA]).split(';')
-                musica_obj = Musica(musica[ARTISTA_ID], musica[ARTISTA],
-                                    musica[MUSICA_ID], musica[MUSICA], musica[GENERO],
-                                    int(musica[POPULARIDADE]), musica[SEQ_FAMOSA],
-                                    musica[TOM], musica[CIFRA])
-                cls.musicas_dict[musica_obj.id_unico_musica] = musica_obj
-
-    def test_regressao_6_sequencias_conjuntos_identicos(self):
-        for seq_tokens, seq_id in sequencias:
-            esperados = set()
-            for mid, m in self.musicas_dict.items():
-                for sf in m.seqs_famosas:
-                    sf_clean = str(sf).strip()
-                    if sf_clean == str(seq_id):
-                        esperados.add(mid)
-                        break
-            encontrados = set()
-            for mid, m in self.musicas_dict.items():
-                if musica_contem_sequencia(m.cifra, seq_tokens):
-                    encontrados.add(mid)
-            self.assertEqual(esperados, encontrados,
-                             msg='Diferenca para sequencia %s (id=%s)' % (seq_tokens, seq_id))
+def carregar_baseline():
+    with open(FIXTURE_PATH, encoding='utf-8') as arquivo:
+        return json.load(arquivo)
 
 
-if __name__ == '__main__':
-    unittest.main()
+def ids(pagina):
+    return [musica['id_unico_musica'] for musica in pagina]
+
+
+def test_baseline_compativel_com_o_catalogo():
+    baseline = carregar_baseline()
+
+    assert main.TAM_PAGINA == baseline['tam_pagina']
+    assert len(baseline['sequencias']) == len(SEQUENCIAS)
+    assert [entry['id'] for entry in baseline['sequencias']] == [
+        seq_id for _, seq_id in SEQUENCIAS]
+
+
+def test_regressao_6_sequencias_conjuntos_identicos():
+    for seq_tokens, seq_id in SEQUENCIAS:
+        esperados = set()
+        for mid, musica in main.musicas.items():
+            if any(str(sf).strip() == str(seq_id) for sf in musica.seqs_famosas):
+                esperados.add(mid)
+
+        encontrados = set()
+        for mid, musica in main.musicas.items():
+            if main.musica_contem_sequencia(musica.cifra, seq_tokens):
+                encontrados.add(mid)
+
+        assert encontrados == esperados, (
+            'Diferenca para sequencia %s (id=%s)' % (seq_tokens, seq_id))
+
+
+def test_regressao_6_sequencias_ordem_e_paginas(client, json_response):
+    baseline = carregar_baseline()
+
+    for entry in baseline['sequencias']:
+        total_encontrado = 0
+        for numero_pagina, pagina_esperada in enumerate(entry['paginas'], start=1):
+            response = client.get('/similares', query_string={
+                'sequencia': entry['sequencia'],
+                'pagina': str(numero_pagina),
+                'generos': ','.join(baseline['generos_ordem']),
+            })
+            assert response.status_code == 200
+            pagina = json_response(response)
+            total_encontrado += len(pagina)
+            assert ids(pagina) == pagina_esperada, (
+                'Diferenca para sequencia %s (id=%s), pagina %s' % (
+                    entry['sequencia'], entry['id'], numero_pagina))
+        assert total_encontrado == entry['total'], (
+            'Total diverge para sequencia %s (id=%s)' % (
+                entry['sequencia'], entry['id']))
